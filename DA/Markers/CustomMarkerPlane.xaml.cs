@@ -25,6 +25,7 @@ namespace DA.Markers
     {
         GMapMarker Marker;
         MainWindow MainWindow;
+        PlaneAngle angle = new PlaneAngle { Angle = 0 };
         public CustomMarkerPlane(MainWindow window, GMapMarker marker)
         {
             InitializeComponent();
@@ -32,6 +33,7 @@ namespace DA.Markers
             this.Marker = marker;
             this.Loaded += new RoutedEventHandler(CustomMarkerPlane_Loaded);
             this.SizeChanged += new SizeChangedEventHandler(CustomMarkerplane_SizeChanged);
+            this.DataContext = angle;
         }
 
         void CustomMarkerPlane_Loaded(object sender, RoutedEventArgs e)
@@ -45,6 +47,17 @@ namespace DA.Markers
         void CustomMarkerplane_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             Marker.Offset = new Point(-e.NewSize.Width / 2, -e.NewSize.Height);
+        }
+
+        public class PlaneAngle
+        {
+            private double anglevalue;
+
+            public double Angle
+            {
+                get { return anglevalue; }
+                set { anglevalue = value; }
+            }
         }
     }
 }

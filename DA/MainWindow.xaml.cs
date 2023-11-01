@@ -15,47 +15,63 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using DA.Markers;
+using System.Threading;
+using System.ComponentModel;
+using System.Windows.Media.Media3D;
+
 
 namespace DA
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
+    /// 
     public partial class MainWindow : Window
     {
+        private static AutoResetEvent _wait = new AutoResetEvent(false);
+        public bool Paused;
+        
         public MainWindow()
         {
             InitializeComponent();
+            
         }
+        
+       
 
         private void mapView_Loaded(object sender, RoutedEventArgs e)
         {
+            
+            Paused = true;
             GMap.NET.GMaps.Instance.Mode = GMap.NET.AccessMode.ServerAndCache;
             // choose your provider here
             mapView.MapProvider = GMap.NET.MapProviders.OpenStreetMapProvider.Instance;
             mapView.MinZoom = 2;
             mapView.MaxZoom = 17;
             mapView.Zoom = 15;
-            mapView.MapPoint = new Point(50.96207262263082, -1.4255905415780727); //starting points
+            mapView.MapPoint = new Point(50.96207262263082, -1.4255905415780727); //starting point
 
             var earth = 6378.137;  //radius of the earth in kilometer
             double pi = Math.PI;
             double m = (1 / ((2 * pi / 360) * earth)) / 1000;  //1 meter in degree
 
+            //finding points 500 meters away for testing
             var new_latitude = 50.96207262263082 + (500 * m);
             var new_longitude = -1.4255905415780727 + (500 * m);
             PointLatLng pos = new PointLatLng(50.96207262263082, -1.4255905415780727);
             PointLatLng posplane = new PointLatLng(new_latitude, -1.4255905415780727);
-            PointLatLng pos2 = new PointLatLng(50.96207262263082, new_longitude);
+            //PointLatLng pos2 = new PointLatLng(50.96207262263082, new_longitude);
 
-
+            //sets the plane marker
             GMapMarker marker = new GMapMarker(posplane);
             {
                 marker.Shape = new CustomMarkerPlane(this, marker);
             }
             mapView.Markers.Add(marker);
+            
 
-            GMapMarker markerdebug = new GMapMarker(posplane);
+
+           /* GMapMarker markerdebug = new GMapMarker(posplane);
             {       
                 markerdebug.Shape = new Ellipse
                 {
@@ -65,9 +81,9 @@ namespace DA
                     StrokeThickness = 1.5
                 };
             }
-            mapView.Markers.Add(markerdebug);
+            mapView.Markers.Add(markerdebug);*/
 
-            GMapMarker markerdebug2 = new GMapMarker(pos2);
+       /*     GMapMarker markerdebug2 = new GMapMarker(pos2);
             {
                 markerdebug2.Shape = new Ellipse
                 {
@@ -77,9 +93,9 @@ namespace DA
                     StrokeThickness = 1.5
                 };
             }
-            mapView.Markers.Add(markerdebug2);
+            mapView.Markers.Add(markerdebug2);*/
 
-            GMapMarker markerdebug3 = new GMapMarker(pos);
+           /* GMapMarker markerdebug3 = new GMapMarker(pos);
             {
                 markerdebug3.Shape = new Ellipse
                 {
@@ -89,9 +105,9 @@ namespace DA
                     StrokeThickness = 1.5
                 };
             }
-            mapView.Markers.Add(markerdebug3);
+            mapView.Markers.Add(markerdebug3);*/
 
-            PointLatLng startingpos = new PointLatLng(50.96207262263082, -1.4255905415780727);
+           // PointLatLng startingpos = new PointLatLng();
             /*GMapMarker circle = new GMapMarker(startingpos);
             {
                 
@@ -109,11 +125,21 @@ namespace DA
                 
             }
             mapView.Markers.Add(circle);*/
-            PointLatLng startingpos3 = new PointLatLng(51.24873805558764, -0.7558367730162311);
+           // PointLatLng startingpos3 = new PointLatLng();
+
+           //sets the starting point
             PointLatLng startingpos2 = new PointLatLng(50.96207262263082, -1.4255905415780727);
-           
-           createcircle(startingpos2, 500, 10000);
+
+            // makes a list of points for the plane to follow
+            List<PointLatLng> gpollist = new List<PointLatLng>();
+
+            //creates the path with a desired starting position, distance and smoothness of path
+            gpollist = createcircle(startingpos2, 500, 20000);
             // CreateCircle(50.96207262263082, -1.4255905415780727, 100);
+
+
+
+
 
             /*List<PointLatLng> points = new List<PointLatLng>();
             points.Add(new PointLatLng(50.96207262263082, -1.4255905415780727));
@@ -128,11 +154,16 @@ namespace DA
              mapView.CanDragMap = true;
             // lets the user drag the map with the left mouse button
             mapView.DragButton = MouseButton.Left;
-          
+            //PlanePath p = new PlanePath(gpollist);
+
+            //moves the plane
+            var PPlane = new Thread(PlanePath);
+            PPlane.IsBackground = true;
+            PPlane.Start(gpollist);
 
         }
 
-        private void createcircle(PointLatLng point, double radius, int segments)
+        private List<PointLatLng> createcircle(PointLatLng point, double radius, int segments)
         {
 
             List<PointLatLng> gpollist = new List<PointLatLng>();
@@ -147,11 +178,11 @@ namespace DA
                 double dy = Math.Cos(theta) * radius;
                 double dx = Math.Sin(theta) * radius;
                 double new_latitude = point.Lat + (dy / r_earth) * (180 / Math.PI);
-                double new_longitude = point.Lng + (dx / r_earth) * (180 / Math.PI) / Math.Cos(point.Lat * Math.PI / 180);
+                double new_longitude = point.Lng + (dx / r_earth) * (180 / Math.PI) / Math.Cos(point.Lat * Math.PI / 180); //confusing maths to figure out each point on the path
 
 
                 PointLatLng gpoi = new PointLatLng(new_latitude, new_longitude);
-
+                
                 gpollist.Add(gpoi);
             }
             GMapPolygon gpol = new GMapPolygon(gpollist);
@@ -165,11 +196,12 @@ namespace DA
            // gMapRoute.Shape = path;
             mapView.Markers.Add(gpol);
             //mapView.Markers.Add(gMapRoute);
+            return gpollist;
         }
 
       
 
-        private void CreateCircle(Double lat, Double lon, double radius)
+      /*  private void CreateCircle(Double lat, Double lon, double radius)
         {
             PointLatLng point = new PointLatLng(lat, lon);
             int segments = 1000;
@@ -222,22 +254,67 @@ namespace DA
         {
             const double radToDegFactor = 180 / Math.PI;
             return radians * radToDegFactor;
-        }
+        }*/
 
 
 
         private void PlayPause_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Debug");
+           
             if(PlayPause.Content.ToString() == "Play")
             {
                 PlayPause.Content = "Pause";
+                Paused = false;
+                _wait.Set();
             }
             else
             {
                 PlayPause.Content = "Play";
+                Paused = true;
+                
             }
         }
+
+        public void PlanePath(object list)
+        {
+            
+            List<PointLatLng> gpollist = new List<PointLatLng>();
+            gpollist = (List<PointLatLng>)list;
+            RotateTransform RT = new RotateTransform();
+            double ratio = 360 / gpollist.Count;
+            
+
+            for (; ; )
+            {
+                int i = 0;
+                foreach (PointLatLng point in gpollist)
+                {
+                    if (Paused == true)
+                    {
+                        _wait.WaitOne();//Pause the loop until unpause.
+
+                    }
+                    this.Dispatcher.Invoke(() =>
+                    {
+                        mapView.Markers[0].Position = point;
+                        
+                        RT = new RotateTransform(i*ratio);
+                        //could change the rotation of the plane icon here using RT
+                    });
+                  //  Console.WriteLine("Playing");
+                    Thread.Sleep(1);
+                    i++;
+                }
+            }
+        }
+
+        void MainWindow_Closing(object sender, EventArgs e)
+        {
+            //MessageBox.Show("Closing called");
+            
+        }
+
+
 
     }
 }
